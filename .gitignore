@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+outputs/
+exports/
+
+dataset.zip
+training_pairs.zip
+sample 1/
+sample 2/
+*.tif
+*.tiff
+*.npz
+*.png
+*.gif
+*.pt
+*.pth
+*.pdf
