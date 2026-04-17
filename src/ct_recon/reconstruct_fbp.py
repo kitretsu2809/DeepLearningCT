@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tifffile
 
-from data_loader import CTScanData, load_sample1
-from geometry import CTGeometry, geometry_for_projection_count, parse_geometry
+from .data_loader import CTScanData, load_sample1
+from .geometry import CTGeometry, geometry_for_projection_count, parse_geometry
+from .paths import OUTPUTS_DIR, SAMPLE_DIR, resolve_repo_path
 
 
 def construct_sinogram(projections: np.ndarray, detector_row: int) -> np.ndarray:
@@ -209,13 +210,13 @@ def default_row_subset(geometry: CTGeometry, count: int = 64) -> list[int]:
 
 
 def run_baseline_reconstruction(
-    sample_dir: str | Path = "sample 1",
+    sample_dir: str | Path = SAMPLE_DIR,
     image_size: int = 512,
     num_rows: int = 64,
-    output_dir: str | Path = "outputs/fbp_baseline",
+    output_dir: str | Path = OUTPUTS_DIR / "fbp_baseline",
 ) -> dict[str, Path]:
-    sample_dir = Path(sample_dir)
-    output_dir = Path(output_dir)
+    sample_dir = resolve_repo_path(sample_dir)
+    output_dir = resolve_repo_path(output_dir)
 
     data = load_sample1(sample_dir)
     geometry = parse_geometry(sample_dir / "settings.cto")

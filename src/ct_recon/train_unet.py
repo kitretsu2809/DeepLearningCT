@@ -9,6 +9,8 @@ from pathlib import Path
 
 import numpy as np
 
+from .paths import OUTPUTS_DIR, resolve_repo_path
+
 
 def _import_torch_or_exit():
     try:
@@ -170,8 +172,8 @@ def main():
             return self.final_conv(x)
 
     parser = argparse.ArgumentParser(description="Train a 2D U-Net on axial CT reconstruction slices.")
-    parser.add_argument("--pairs-root", default="outputs/training_pairs", help="Directory containing pair subfolders with axial_slices.npz")
-    parser.add_argument("--output-dir", default="outputs/unet_training", help="Directory for checkpoints and logs")
+    parser.add_argument("--pairs-root", default=str(OUTPUTS_DIR / "training_pairs"), help="Directory containing pair subfolders with axial_slices.npz")
+    parser.add_argument("--output-dir", default=str(OUTPUTS_DIR / "unet_training"), help="Directory for checkpoints and logs")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--learning-rate", type=float, default=1e-3)
@@ -183,10 +185,10 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    output_dir = Path(args.output_dir)
+    output_dir = resolve_repo_path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    records = load_slice_records(args.pairs_root)
+    records = load_slice_records(resolve_repo_path(args.pairs_root))
     train_records, val_records = split_records(records, val_fraction=args.val_fraction, seed=args.seed)
 
     train_dataset = SlicePairDataset(train_records)

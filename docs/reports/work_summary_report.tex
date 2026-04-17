@@ -1,0 +1,576 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\lstdefinestyle{py}{
+  language=Python,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{teal},
+  stringstyle=\color{red!60!black},
+  showstringspaces=false,
+  breaklines=true,
+  frame=single
+}
+
+\title{Deep Learning CT Reconstruction\\Work Summary Report}
+\author{Prepared for Project Explanation}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{1. What we have done till now}
+This project builds a complete computed tomography (CT) reconstruction pipeline and then extends it with a deep-learning based post-processing model. The work can be divided into two major parts:
+
+\begin{enumerate}[leftmargin=*]
+\item Classical CT reconstruction from measured projection images.
+\item Learning-based enhancement of degraded reconstructions using paired training data.
+\end{enumerate}
+
+In the current workspace, the implemented pipeline is:
+\begin{enumerate}[leftmargin=*]
+\item Load the raw projection TIFF images and scan settings.
+\item Parse CT geometry from the \texttt{settings.cto} file.
+\item Build an early baseline reconstruction using slice-wise filtered backprojection (FBP).
+\item Build the main 3D cone-beam reconstruction using ASTRA FDK.
+\item Simulate degraded acquisition conditions such as sparse-view, limited-angle, and noisy scans.
+\item Reconstruct both degraded and full-reference volumes.
+\item Align and save input-target training pairs.
+\item Train a 2D U-Net on axial slices.
+\item Export compact training data for Google Colab.
+\item Add phantom/STL generation utilities for resolution testing and printable objects.
+\end{enumerate}
+
+\paragraph{Important note on chronology.}
+The Git history in this repository currently shows only one commit, so this report reconstructs the workflow from the present codebase and the uncommitted files available in the workspace.
+
+\section*{2. Project objective}
+The objective is to improve CT image quality when the scan is degraded. In practice, this means:
+\begin{itemize}[leftmargin=*]
+\item reconstructing a high-quality reference volume from full projection data,
+\item creating difficult acquisition scenarios,
+\item reconstructing artifact-corrupted volumes from those degraded projections, and
+\item training a neural network to map degraded slices to improved slices.
+\end{itemize}
+
+Mathematically, if the projection operator is denoted by $\mathcal{P}$ and the ideal object by $f$, then the measured projections are
+\[
+g = \mathcal{P}f + \epsilon,
+\]
+where $\epsilon$ represents measurement noise and acquisition imperfections.
+
+The reconstruction operator $\mathcal{R}$ gives
+\[
+\hat{f} = \mathcal{R}(g).
+\]
+
+For degraded acquisition,
+\[
+g_d = \mathcal{D}(g),
+\]
+where $\mathcal{D}$ is a degradation operator such as sparse-view sampling, limited-angle selection, or noise addition. Then the degraded reconstruction is
+\[
+\hat{f}_d = \mathcal{R}(g_d),
+\]
+and the neural network is trained to learn
+\[
+\mathcal{N}(\hat{f}_d) \approx \hat{f}_{\text{ref}}.
+\]
+
+\section*{3. Step 1: Loading the CT data}
+The file \texttt{data\_loader.py} is responsible for reading the dataset from \texttt{sample 1}. It:
+\begin{itemize}[leftmargin=*]
+\item reads the \texttt{settings.cto} configuration file,
+\item loads all TIFF projection images from the \texttt{projections} folder,
+\item converts them into a 3D NumPy array of shape
+\[
+(\text{number of projections}, \text{detector rows}, \text{detector columns}),
+\]
+\item stores the result in a \texttt{CTScanData} dataclass.
+\end{itemize}
+
+The settings parser also converts strings into integers, floating-point values, and booleans where possible.
+
+\begin{lstlisting}[style=py,caption={Core idea of projection loading}]
+files = sorted(projections_dir.glob("*.tif"))
+stack = np.stack(
+    [tifffile.imread(str(path)).astype(dtype, copy=False) for path in files],
+    axis=0,
+)
+\end{lstlisting}
+
+\section*{4. Step 2: Parsing geometry from the scan settings}
+The file \texttt{geometry.py} converts the scanner settings into a structured geometry object. This includes:
+\begin{itemize}[leftmargin=*]
+\item number of projections,
+\item total angular range,
+\item detector size,
+\item detector pixel size,
+\item source-to-object distance (SOD),
+\item source-to-detector distance (SDD),
+\item center of rotation (COR),
+\item valid axial reconstruction range \texttt{zmin} to \texttt{zmax}.
+\end{itemize}
+
+The projection angles are generated as
+\[
+\theta_i = \theta_0 + i \cdot \Delta \theta,\qquad i=0,1,\dots,N-1,
+\]
+where
+\[
+\Delta \theta = \frac{\text{angle range}}{N}.
+\]
+
+In code, the angles are created using:
+\begin{lstlisting}[style=py,caption={Angle generation}]
+angles_deg = np.linspace(start_angle_deg, stop_angle_deg,
+                         projections, endpoint=False, dtype=np.float32)
+angles_rad = np.deg2rad(angles_deg).astype(np.float32)
+\end{lstlisting}
+
+\section*{5. Step 3: First baseline approach using slice-wise FBP}
+The file \texttt{reconstruct\_fbp.py} implements an early baseline. This is not the final cone-beam solution, but it is important because it establishes the basic CT reconstruction idea.
+
+\subsection*{5.1 Sinogram construction}
+For a chosen detector row, the code extracts one horizontal line from each projection. This produces a 2D sinogram:
+\[
+S(s,\theta),
+\]
+where $s$ is detector position and $\theta$ is projection angle.
+
+\begin{lstlisting}[style=py,caption={Constructing a sinogram from a detector row}]
+def construct_sinogram(projections, detector_row):
+    return projections[:, detector_row, :].T
+\end{lstlisting}
+
+\subsection*{5.2 Ramp filtering}
+Classical FBP requires filtering in frequency space. If $\mathcal{F}$ is the Fourier transform, then the filtered sinogram is
+\[
+\tilde{S}(s,\theta) = \mathcal{F}^{-1}\left( |\omega| \, \mathcal{F}(S(s,\theta)) \right),
+\]
+where $|\omega|$ is the ramp filter.
+
+This is implemented as:
+\begin{lstlisting}[style=py,caption={Ramp filter implementation}]
+frequencies = np.fft.fftfreq(num_detectors, d=detector_spacing_mm)
+ramp = np.abs(frequencies)
+spectrum = np.fft.fft(sinogram, axis=0)
+filtered = np.fft.ifft(spectrum * ramp[:, None], axis=0).real
+\end{lstlisting}
+
+\subsection*{5.3 Backprojection}
+For each image point $(x,y)$ and each angle $\theta$, the detector coordinate is approximated by
+\[
+s = x\cos\theta + y\sin\theta.
+\]
+
+The reconstruction is then accumulated over all angles:
+\[
+f(x,y) \approx \int_0^\pi \tilde{S}(x\cos\theta + y\sin\theta,\theta)\, d\theta.
+\]
+
+The code performs this discretely:
+\begin{lstlisting}[style=py,caption={Discrete backprojection loop}]
+for angle_index, theta in enumerate(angles_rad):
+    detector_coordinate = xx * np.cos(theta) + yy * np.sin(theta)
+    sampled = np.interp(detector_coordinate.ravel(),
+                        detector_positions_mm,
+                        filtered[:, angle_index],
+                        left=0.0, right=0.0)
+    reconstruction += sampled.reshape(image_size, image_size)
+\end{lstlisting}
+
+\subsection*{5.4 Why this baseline matters}
+This baseline helped us:
+\begin{itemize}[leftmargin=*]
+\item verify that the data loading and angle handling were correct,
+\item understand the basic sinogram-to-image relationship,
+\item produce an interpretable first reconstruction before moving to 3D cone-beam reconstruction.
+\end{itemize}
+
+\section*{6. Step 4: Main 3D reconstruction using ASTRA FDK}
+The file \texttt{reconstruct\_fdk\_astra.py} is the main reconstruction script. It uses the ASTRA toolbox with the CUDA FDK algorithm for cone-beam CT.
+
+\subsection*{6.1 Detector downsampling}
+Because full-resolution detector data can exceed GPU memory, the code spatially downsamples each projection by block averaging:
+\[
+P_{\text{ds}}(i,j) = \frac{1}{k^2}\sum_{u=0}^{k-1}\sum_{v=0}^{k-1} P(ki+u, kj+v).
+\]
+
+\begin{lstlisting}[style=py,caption={Spatial projection downsampling}]
+return image.reshape(cropped_h // factor, factor,
+                     cropped_w // factor, factor).mean(axis=(1, 3))
+\end{lstlisting}
+
+\subsection*{6.2 Intensity to attenuation conversion}
+CT reconstruction should use line integrals of attenuation. If $I$ is the measured intensity and $I_0$ is the air intensity, then:
+\[
+\mu L = -\log\left(\frac{I}{I_0}\right).
+\]
+
+The code estimates $I_0$ from a high percentile of each projection:
+\begin{lstlisting}[style=py,caption={Beer-Lambert conversion}]
+air_level = np.percentile(projections, air_percentile, axis=(1, 2), keepdims=True)
+normalized = np.clip(projections / air_level, 1e-6, 1.0)
+attenuation = -np.log(normalized)
+\end{lstlisting}
+
+\subsection*{6.3 Cone-beam geometry}
+The ASTRA projection geometry is created using:
+\begin{itemize}[leftmargin=*]
+\item detector pixel spacing,
+\item detector rows and columns,
+\item projection angles,
+\item source-to-object distance,
+\item source-to-detector distance.
+\end{itemize}
+
+The volume voxel size is estimated by geometric magnification:
+\[
+\text{voxel size} = \text{detector pixel size} \cdot \frac{\text{SOD}}{\text{SDD}}.
+\]
+
+\subsection*{6.4 FDK reconstruction}
+FDK is a cone-beam extension of filtered backprojection. In simplified form, it:
+\begin{enumerate}[leftmargin=*]
+\item applies cone-beam weighting,
+\item filters projections,
+\item backprojects them through 3D geometry.
+\end{enumerate}
+
+The code delegates this to ASTRA:
+\begin{lstlisting}[style=py,caption={Running FDK with ASTRA}]
+cfg = astra.astra_dict("FDK_CUDA")
+cfg["ProjectionDataId"] = proj_id
+cfg["ReconstructionDataId"] = vol_id
+alg_id = astra.algorithm.create(cfg)
+astra.algorithm.run(alg_id)
+reconstructed = astra.data3d.get(vol_id).astype(np.float32, copy=False)
+\end{lstlisting}
+
+\subsection*{6.5 Cropping valid z-range}
+After reconstruction, only the physically valid axial range is kept:
+\[
+z \in [z_{\min}, z_{\max}].
+\]
+This removes unsupported slices outside the meaningful reconstruction interval.
+
+\section*{7. Step 5: Simulating degraded acquisition conditions}
+The file \texttt{simulate\_degradation.py} generates harder CT scenarios so that the deep model learns to correct artifacts.
+
+\subsection*{7.1 Full dataset}
+The full dataset is used as the reference case. It keeps all projections and all angles.
+
+\subsection*{7.2 Sparse-view CT}
+Sparse-view acquisition keeps every $k$-th projection:
+\[
+g_{\text{sparse}} = \{g_0, g_k, g_{2k}, \dots\}.
+\]
+
+This reduces the number of views and typically produces streak artifacts.
+
+\begin{lstlisting}[style=py,caption={Sparse-view selection}]
+indices = np.arange(0, projections.shape[0], step, dtype=np.int32)
+return projections[indices], angles_rad[indices], indices
+\end{lstlisting}
+
+\subsection*{7.3 Limited-angle CT}
+Limited-angle acquisition keeps only a restricted angular interval:
+\[
+\theta \in [\theta_{\text{start}}, \theta_{\text{stop}}].
+\]
+
+This makes the inverse problem incomplete and usually introduces directional artifacts and missing-edge effects.
+
+\subsection*{7.4 Noise simulation}
+Two noise models are implemented.
+
+\paragraph{Gaussian noise.}
+\[
+g_{\text{noisy}} = g + \eta,\qquad \eta \sim \mathcal{N}(0,\sigma^2).
+\]
+
+\paragraph{Poisson noise.}
+Photon-counting physics is approximated by:
+\[
+c \sim \text{Poisson}(\lambda),
+\]
+followed by a scaling back to intensity space. This better reflects shot noise in X-ray imaging.
+
+\begin{lstlisting}[style=py,caption={Poisson noise simulation}]
+counts = rng.poisson(scaled * photon_budget).astype(np.float32)
+restored = np.clip(counts / photon_budget, 1e-6, None) * peak
+\end{lstlisting}
+
+\subsection*{7.5 Default degraded sets}
+The code currently prepares these standard cases:
+\begin{itemize}[leftmargin=*]
+\item sparse-view with step 2,
+\item sparse-view with step 4,
+\item limited-angle from $0^\circ$ to $180^\circ$,
+\item limited-angle from $30^\circ$ to $210^\circ$,
+\item Poisson noise with level 0.5,
+\item Poisson noise with level 0.25.
+\end{itemize}
+
+\section*{8. Step 6: Building supervised training pairs}
+The file \texttt{build\_training\_pairs.py} creates paired data for learning.
+
+\subsection*{8.1 Reference target volume}
+First, the code reconstructs a reference volume from the full dataset using the FDK pipeline.
+
+\subsection*{8.2 Input volume}
+Then it reconstructs each degraded dataset with the same FDK pipeline. This ensures that the learning task compares:
+\[
+\text{degraded FDK reconstruction} \rightarrow \text{reference FDK reconstruction}.
+\]
+
+\subsection*{8.3 Shape alignment}
+Because two reconstructions may differ slightly in size after downsampling and cropping, the code performs center-cropping to their common shape:
+\[
+(Z,Y,X)_{\text{shared}} = \min\big((Z,Y,X)_{\text{input}}, (Z,Y,X)_{\text{target}}\big).
+\]
+
+\begin{lstlisting}[style=py,caption={Shape alignment by center crop}]
+shared_shape = tuple(min(a, b) for a, b in zip(input_volume.shape, target_volume.shape))
+\end{lstlisting}
+
+\subsection*{8.4 Slice extraction and normalization}
+The volumes are normalized to the range $[0,1]$:
+\[
+v_{\text{norm}} = \frac{v - v_{\min}}{v_{\max} - v_{\min}}.
+\]
+
+Then axial slices are saved into a compressed \texttt{.npz} file:
+\begin{itemize}[leftmargin=*]
+\item \texttt{input\_slices}
+\item \texttt{target\_slices}
+\end{itemize}
+
+This prepares a supervised learning dataset at the slice level.
+
+\section*{9. Step 7: Training the 2D U-Net}
+The file \texttt{train\_unet.py} trains a 2D U-Net on axial slice pairs.
+
+\subsection*{9.1 Why 2D slices}
+Instead of training a full 3D network immediately, the code uses 2D axial slices because:
+\begin{itemize}[leftmargin=*]
+\item memory cost is lower,
+\item training is easier to start and debug,
+\item data preparation is simpler,
+\item it is a reasonable first deep-learning baseline.
+\end{itemize}
+
+\subsection*{9.2 Dataset format}
+Each training item is:
+\[
+x \in \mathbb{R}^{1 \times H \times W},\qquad y \in \mathbb{R}^{1 \times H \times W},
+\]
+where $x$ is the degraded axial slice and $y$ is the reference slice.
+
+\subsection*{9.3 Network structure}
+The network contains:
+\begin{itemize}[leftmargin=*]
+\item encoder blocks with two convolutions each,
+\item max-pooling for downsampling,
+\item a bottleneck,
+\item transpose convolutions for upsampling,
+\item skip connections between encoder and decoder.
+\end{itemize}
+
+This architecture is well suited for image restoration because it preserves both global context and local detail.
+
+\begin{lstlisting}[style=py,caption={U-Net block idea}]
+self.net = nn.Sequential(
+    nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
+    nn.ReLU(inplace=True),
+    nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+    nn.ReLU(inplace=True),
+)
+\end{lstlisting}
+
+\subsection*{9.4 Loss function}
+The model uses L1 loss:
+\[
+\mathcal{L}_{L1} = \frac{1}{N}\sum_{i=1}^N |\hat{y}_i - y_i|.
+\]
+
+This is a common choice for reconstruction and denoising because it often preserves edges better than mean squared error.
+
+\subsection*{9.5 Optimization}
+The optimizer is Adam with configurable learning rate. The training loop performs:
+\begin{enumerate}[leftmargin=*]
+\item forward pass,
+\item loss computation,
+\item backpropagation,
+\item parameter update.
+\end{enumerate}
+
+\begin{lstlisting}[style=py,caption={Training step}]
+optimizer.zero_grad(set_to_none=True)
+predictions = model(inputs)
+loss = criterion(predictions, targets)
+loss.backward()
+optimizer.step()
+\end{lstlisting}
+
+\subsection*{9.6 Validation metric}
+The code also computes PSNR:
+\[
+\text{PSNR} = 10 \log_{10}\left(\frac{1}{\text{MSE}}\right),
+\]
+assuming the normalized intensity range is $[0,1]$.
+
+Higher PSNR generally indicates better agreement with the target slices.
+
+\section*{10. Step 8: Exporting data for Colab}
+The file \texttt{export\_for\_colab.py} copies only the compact files needed for training:
+\begin{itemize}[leftmargin=*]
+\item \texttt{axial\_slices.npz}
+\item \texttt{pair\_metadata.json}
+\end{itemize}
+
+Then it creates a manifest and an optional ZIP archive. This makes it easy to train the model in Google Colab without transferring all reconstruction outputs.
+
+\section*{11. Step 9: Phantom and STL generation work}
+The current workspace also contains newer scripts that are not committed to Git yet. These scripts extend the project beyond reconstruction into test-object design and fabrication.
+
+\subsection*{11.1 USAF-like phantom generator}
+The file \texttt{usaf\_phantom\_generator.py} generates a 3D phantom based on USAF resolution elements. It computes line-pair frequency as:
+\[
+\text{lp/mm} = 2^{g + (e-1)/6},
+\]
+where $g$ is the group and $e$ is the element number.
+
+Then:
+\[
+\text{line width} = \frac{1}{2\cdot \text{lp/mm}},\qquad
+\text{pitch} = \frac{1}{\text{lp/mm}}.
+\]
+
+These patterns are rasterized into 2D bar structures and extruded into a 3D volume.
+
+\subsection*{11.2 Printable USAF STL}
+The file \texttt{export\_usaf\_phantom\_stl.py} builds a classical MIL-style printable resolution plate using repeated rectangular boxes. Each bar is represented as a cuboid in 3D and then exported as ASCII STL.
+
+\subsection*{11.3 Resolution cuboid with internal features}
+The file \texttt{export\_resolution\_cuboid\_stl.py} creates a cuboid containing enclosed internal bar-space patterns. This is useful for testing whether CT can resolve hidden internal features of different sizes.
+
+The internal structure is represented as a voxel occupancy grid, and exposed surfaces are converted to triangles for STL output.
+
+\subsection*{11.4 STL scaling utility}
+The file \texttt{scale\_ascii\_stl.py} rescales ASCII STL geometry by multiplying each vertex coordinate by a chosen scale factor:
+\[
+(x,y,z) \mapsto (\alpha x, \alpha y, \alpha z).
+\]
+
+\section*{12. Summary of all approaches we implemented}
+Till now, the project includes the following technical approaches:
+
+\begin{longtable}{|p{3.1cm}|p{4.0cm}|p{7.2cm}|}
+\hline
+\textbf{Approach} & \textbf{File(s)} & \textbf{Purpose} \\
+\hline
+Slice-wise FBP baseline & \texttt{reconstruct\_fbp.py} & Early classical reconstruction baseline for understanding sinograms, filtering, and backprojection. \\
+\hline
+3D cone-beam FDK & \texttt{reconstruct\_fdk\_astra.py} & Main reconstruction pipeline using ASTRA CUDA. \\
+\hline
+Degradation simulation & \texttt{simulate\_degradation.py} & Create sparse-view, limited-angle, and noisy projection datasets. \\
+\hline
+Supervised pair creation & \texttt{build\_training\_pairs.py} & Produce aligned degraded/reference volumes and normalized axial slices. \\
+\hline
+Deep learning restoration & \texttt{train\_unet.py} & Train a 2D U-Net to map degraded slices to clean slices. \\
+\hline
+Portable export workflow & \texttt{export\_for\_colab.py} & Export compact training data for cloud training. \\
+\hline
+Resolution phantom generation & \texttt{usaf\_phantom\_generator.py} & Create a 3D USAF-like phantom volume. \\
+\hline
+Printable phantom STL & \texttt{export\_usaf\_phantom\_stl.py} & Build a printable USAF-style test plate. \\
+\hline
+Internal resolution cuboid & \texttt{export\_resolution\_cuboid\_stl.py} & Build a voxel-based STL with enclosed test patterns. \\
+\hline
+STL scaling utility & \texttt{scale\_ascii\_stl.py} & Uniformly scale printable geometry. \\
+\hline
+\end{longtable}
+
+\section*{13. Overall workflow in simple words}
+If I explain the project simply to a professor, I would say:
+
+\begin{quote}
+We first loaded raw CT projection images and scanner geometry. Then we tried a basic reconstruction method using filtered backprojection on selected detector rows to understand the reconstruction process. After that, we implemented a full 3D cone-beam reconstruction using the ASTRA toolbox and the FDK algorithm. Next, we artificially degraded the scan data using sparse angles, limited angle ranges, and noise to simulate difficult real-world CT conditions. We reconstructed both the clean and degraded data, paired them, and trained a 2D U-Net model so that it learns to improve degraded reconstructions slice by slice. In addition, we started generating phantom and STL models for resolution analysis and possible physical testing.
+\end{quote}
+
+\section*{14. Code snippets representing the main pipeline}
+
+\subsection*{14.1 Build full reference reconstruction}
+\begin{lstlisting}[style=py]
+dataset = make_full_projection_dataset(sample_dir)
+volume, info = reconstruct_volume_from_projection_dataset(
+    dataset=dataset,
+    sample_dir=sample_dir,
+    downsample_factor=2,
+)
+\end{lstlisting}
+
+\subsection*{14.2 Build degraded datasets}
+\begin{lstlisting}[style=py]
+datasets = [
+    create_sparse_view_dataset(sample_dir=sample_dir, step=2),
+    create_sparse_view_dataset(sample_dir=sample_dir, step=4),
+    create_limited_angle_dataset(sample_dir=sample_dir, start_deg=0.0, stop_deg=180.0),
+    create_noisy_dataset(sample_dir=sample_dir, mode="poisson", level=0.25, seed=0),
+]
+\end{lstlisting}
+
+\subsection*{14.3 Build training pairs}
+\begin{lstlisting}[style=py]
+outputs = build_default_training_pairs(
+    sample_dir="sample 1",
+    downsample_factor=2,
+    output_dir="outputs/training_pairs",
+)
+\end{lstlisting}
+
+\subsection*{14.4 Train the model}
+\begin{lstlisting}[style=py]
+python train_unet.py \
+  --pairs-root outputs/training_pairs \
+  --output-dir outputs/unet_training \
+  --epochs 20 \
+  --batch-size 8 \
+  --learning-rate 1e-3
+\end{lstlisting}
+
+\section*{15. What can be said as conclusion}
+Till now, the work shows a complete research workflow:
+\begin{itemize}[leftmargin=*]
+\item raw CT data understanding,
+\item classical reconstruction,
+\item advanced 3D cone-beam reconstruction,
+\item artifact simulation,
+\item supervised data generation,
+\item deep-learning enhancement,
+\item phantom generation for further testing.
+\end{itemize}
+
+So this is not just one script. It is a full pipeline from acquisition data to reconstruction to machine-learning based quality improvement.
+
+\section*{16. Possible next extensions}
+Logical next steps for the project are:
+\begin{itemize}[leftmargin=*]
+\item quantitative evaluation using PSNR, SSIM, and error maps on saved outputs,
+\item inference script for applying the trained U-Net to whole volumes,
+\item 3D deep-learning models instead of 2D slices,
+\item comparison with iterative reconstruction methods,
+\item evaluation of the generated phantoms with the same CT pipeline.
+\end{itemize}
+
+\end{document}

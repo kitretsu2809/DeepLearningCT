@@ -6,8 +6,9 @@ from pathlib import Path
 import numpy as np
 import tifffile
 
-from reconstruct_fdk_astra import reconstruct_volume_from_projection_dataset, save_reconstruction_outputs
-from simulate_degradation import (
+from .paths import OUTPUTS_DIR, SAMPLE_DIR, resolve_repo_path
+from .reconstruct_fdk_astra import reconstruct_volume_from_projection_dataset, save_reconstruction_outputs
+from .simulate_degradation import (
     DegradedProjectionData,
     build_default_degradation_sets,
     make_full_projection_dataset,
@@ -50,7 +51,7 @@ def save_pair_outputs(
     output_dir: str | Path,
     metadata: dict,
 ) -> dict[str, Path]:
-    output_dir = Path(output_dir) / name
+    output_dir = resolve_repo_path(output_dir) / name
     output_dir.mkdir(parents=True, exist_ok=True)
 
     input_path = output_dir / "input_volume.tif"
@@ -78,9 +79,9 @@ def save_pair_outputs(
 
 def build_pair_for_dataset(
     degraded_dataset: DegradedProjectionData,
-    sample_dir: str | Path = "sample 1",
+    sample_dir: str | Path = SAMPLE_DIR,
     downsample_factor: int = 2,
-    output_dir: str | Path = "outputs/training_pairs",
+    output_dir: str | Path = OUTPUTS_DIR / "training_pairs",
     target_volume: np.ndarray | None = None,
     target_info: dict | None = None,
 ) -> dict[str, Path]:
@@ -132,9 +133,9 @@ def build_pair_for_dataset(
 
 
 def build_default_training_pairs(
-    sample_dir: str | Path = "sample 1",
+    sample_dir: str | Path = SAMPLE_DIR,
     downsample_factor: int = 2,
-    output_dir: str | Path = "outputs/training_pairs",
+    output_dir: str | Path = OUTPUTS_DIR / "training_pairs",
 ) -> list[dict[str, Path]]:
     full_dataset = make_full_projection_dataset(sample_dir)
     target_volume, target_info = reconstruct_volume_from_projection_dataset(

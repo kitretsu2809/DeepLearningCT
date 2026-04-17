@@ -4,6 +4,8 @@ import argparse
 import shutil
 from pathlib import Path
 
+from .paths import EXPORTS_DIR, OUTPUTS_DIR, resolve_repo_path
+
 
 def copy_pair_folder(pair_dir: Path, export_root: Path) -> Path:
     destination = export_root / pair_dir.name
@@ -23,12 +25,12 @@ def copy_pair_folder(pair_dir: Path, export_root: Path) -> Path:
 
 
 def export_training_pairs(
-    pairs_root: str | Path = "outputs/training_pairs",
-    export_root: str | Path = "exports/colab_training_pairs",
+    pairs_root: str | Path = OUTPUTS_DIR / "training_pairs",
+    export_root: str | Path = EXPORTS_DIR / "colab_training_pairs",
     zip_output: bool = True,
 ) -> dict[str, Path]:
-    pairs_root = Path(pairs_root)
-    export_root = Path(export_root)
+    pairs_root = resolve_repo_path(pairs_root)
+    export_root = resolve_repo_path(export_root)
 
     if not pairs_root.exists():
         raise FileNotFoundError(f"Pairs root does not exist: {pairs_root}")
@@ -66,8 +68,8 @@ def export_training_pairs(
 
 def main():
     parser = argparse.ArgumentParser(description="Export compact training-pair files for Colab.")
-    parser.add_argument("--pairs-root", default="outputs/training_pairs", help="Directory containing pair subfolders")
-    parser.add_argument("--export-root", default="exports/colab_training_pairs", help="Output directory for compact Colab export")
+    parser.add_argument("--pairs-root", default=str(OUTPUTS_DIR / "training_pairs"), help="Directory containing pair subfolders")
+    parser.add_argument("--export-root", default=str(EXPORTS_DIR / "colab_training_pairs"), help="Output directory for compact Colab export")
     parser.add_argument("--no-zip", action="store_true", help="Do not create a zip archive")
     args = parser.parse_args()
 

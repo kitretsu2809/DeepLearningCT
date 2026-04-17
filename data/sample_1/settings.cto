@@ -1,0 +1,44 @@
+[Device settings]
+mA = 1.000000
+kV = 35.000000
+
+[Detector settings]
+binning = 0
+frames = 1
+exp time (ms) = 500.000000
+CORunbinned = 500.000000
+pixel size = 0.048000
+Xmin = 0
+Xmax = 1000
+Ymin = 0
+Ymax = 1000
+VC = 500.000000
+
+[CT scan settings]
+projections = 360
+angle range = 360.000000
+CWCCW = FALSE
+SOD = 160.000000
+SDD = 200.000000
+
+[CT reconstruction settings]
+SOD = 160.000000    
+SDD = 200.000000    
+COR = 518.000000    
+vertical center = 500.000000    
+last angle = 360.000000    
+bhc = 0.000000    
+filter strength = 0.000000    
+projections = 360    
+rows = 1000    
+columns = 1000    
+pixel_size (mm) = 0.048000    
+zmax = 939    
+zmin = 61    
+direction = 1    
+tilt = 0.000000    
+xminrec = 0    
+xmaxrec = 1000    
+yminrec = 0    
+ymaxrec = 1000    
+interpolate = FALSE    

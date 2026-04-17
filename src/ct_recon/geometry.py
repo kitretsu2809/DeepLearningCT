@@ -6,7 +6,8 @@ from typing import Any
 
 import numpy as np
 
-from data_loader import load_cto_settings
+from .data_loader import load_cto_settings
+from .paths import SAMPLE_DIR
 
 
 @dataclass
@@ -102,5 +103,5 @@ def geometry_for_projection_count(geometry: CTGeometry, projection_count: int) -
 
 
 if __name__ == "__main__":
-    geometry = parse_geometry("sample 1/settings.cto")
+    geometry = parse_geometry(SAMPLE_DIR / "settings.cto")
     print(geometry)

@@ -8,6 +8,8 @@ from typing import Any
 import numpy as np
 import tifffile
 
+from .paths import SAMPLE_DIR, resolve_repo_path
+
 
 @dataclass
 class CTScanData:
@@ -74,8 +76,8 @@ def load_projection_stack(projections_dir: str | Path, dtype=np.float32) -> tupl
     return stack, files
 
 
-def load_sample1(sample_dir: str | Path = "sample 1", dtype=np.float32) -> CTScanData:
-    sample_dir = Path(sample_dir)
+def load_sample1(sample_dir: str | Path = SAMPLE_DIR, dtype=np.float32) -> CTScanData:
+    sample_dir = resolve_repo_path(sample_dir)
     settings_path = sample_dir / "settings.cto"
     projections_dir = sample_dir / "projections"
 

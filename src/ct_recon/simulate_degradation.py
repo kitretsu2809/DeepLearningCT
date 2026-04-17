@@ -8,8 +8,9 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from data_loader import CTScanData, load_sample1
-from geometry import geometry_for_projection_count, parse_geometry
+from .data_loader import CTScanData, load_sample1
+from .geometry import geometry_for_projection_count, parse_geometry
+from .paths import OUTPUTS_DIR, SAMPLE_DIR, resolve_repo_path
 
 
 @dataclass
@@ -30,8 +31,8 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
     return (image - min_value) / (max_value - min_value)
 
 
-def make_full_projection_dataset(sample_dir: str | Path = "sample 1") -> DegradedProjectionData:
-    sample_dir = Path(sample_dir)
+def make_full_projection_dataset(sample_dir: str | Path = SAMPLE_DIR) -> DegradedProjectionData:
+    sample_dir = resolve_repo_path(sample_dir)
     data = load_sample1(sample_dir)
     geometry = parse_geometry(sample_dir / "settings.cto")
     geometry = geometry_for_projection_count(geometry, data.projections.shape[0])
@@ -112,7 +113,7 @@ def add_poisson_noise(
     return restored.astype(np.float32, copy=False)
 
 
-def create_sparse_view_dataset(sample_dir: str | Path = "sample 1", step: int = 4) -> DegradedProjectionData:
+def create_sparse_view_dataset(sample_dir: str | Path = SAMPLE_DIR, step: int = 4) -> DegradedProjectionData:
     base = make_full_projection_dataset(sample_dir)
     projections, angles_rad, indices = sparse_view_subset(base.projections, base.angles_rad, step=step)
     return DegradedProjectionData(
@@ -130,7 +131,7 @@ def create_sparse_view_dataset(sample_dir: str | Path = "sample 1", step: int = 
 
 
 def create_limited_angle_dataset(
-    sample_dir: str | Path = "sample 1",
+    sample_dir: str | Path = SAMPLE_DIR,
     start_deg: float = 0.0,
     stop_deg: float = 180.0,
 ) -> DegradedProjectionData:
@@ -157,7 +158,7 @@ def create_limited_angle_dataset(
 
 
 def create_noisy_dataset(
-    sample_dir: str | Path = "sample 1",
+    sample_dir: str | Path = SAMPLE_DIR,
     mode: str = "poisson",
     level: float = 0.25,
     seed: int = 0,
@@ -240,7 +241,7 @@ def save_dataset_preview(dataset: DegradedProjectionData, output_path: str | Pat
     return output_path
 
 
-def build_default_degradation_sets(sample_dir: str | Path = "sample 1") -> list[DegradedProjectionData]:
+def build_default_degradation_sets(sample_dir: str | Path = SAMPLE_DIR) -> list[DegradedProjectionData]:
     return [
         create_sparse_view_dataset(sample_dir=sample_dir, step=2),
         create_sparse_view_dataset(sample_dir=sample_dir, step=4),
@@ -252,10 +253,11 @@ def build_default_degradation_sets(sample_dir: str | Path = "sample 1") -> list[
 
 
 def build_and_save_default_degradation_sets(
-    sample_dir: str | Path = "sample 1",
-    output_dir: str | Path = "outputs/degradations",
+    sample_dir: str | Path = SAMPLE_DIR,
+    output_dir: str | Path = OUTPUTS_DIR / "degradations",
 ) -> list[dict[str, Path]]:
     datasets = build_default_degradation_sets(sample_dir=sample_dir)
+    output_dir = resolve_repo_path(output_dir)
     return [save_projection_dataset(dataset, output_dir) for dataset in datasets]
 
 

@@ -1,20 +1,65 @@
+# Virtual environment
 .venv/
+
+# Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+*.egg
+dist/
+build/
+.pytest_cache/
 .ipynb_checkpoints/
 
+# Generated outputs (reconstructions, datasets, checkpoints)
 outputs/
 exports/
 
+# Large data files (should be downloaded separately)
+data/archives/
+data/sample_1/projections/
+data/sample_2/
+
+# Specific large archives
 dataset.zip
 training_pairs.zip
-sample 1/
-sample 2/
+
+# Model weights
+*.pt
+*.pth
+*.ckpt
+
+# Images (projection data, reconstructed volumes)
 *.tif
 *.tiff
 *.npz
 *.png
 *.gif
-*.pt
-*.pth
+*.jpg
+*.jpeg
+
+# PDFs
 *.pdf
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# STL files (can be large)
+*.stl
+
+# USAF phantom related (not needed)
+*usaf_phantom*.py
+*usaf_phantom*stl*

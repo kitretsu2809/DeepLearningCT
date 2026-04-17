@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tifffile
 
-from geometry import geometry_for_projection_count, parse_geometry
-from simulate_degradation import DegradedProjectionData, make_full_projection_dataset
+from .geometry import geometry_for_projection_count, parse_geometry
+from .paths import OUTPUTS_DIR, SAMPLE_DIR, resolve_repo_path
+from .simulate_degradation import DegradedProjectionData, make_full_projection_dataset
 
 
 def block_average_2d(image: np.ndarray, factor: int) -> np.ndarray:
@@ -134,10 +135,10 @@ def save_preview(volume: np.ndarray, voxel_size_mm: float, output_path: str | Pa
 
 def reconstruct_volume_from_projection_dataset(
     dataset: DegradedProjectionData,
-    sample_dir: str | Path = "sample 1",
+    sample_dir: str | Path = SAMPLE_DIR,
     downsample_factor: int = 2,
 ) -> tuple[np.ndarray, dict[str, float | int | tuple[int, ...]]]:
-    sample_dir = Path(sample_dir)
+    sample_dir = resolve_repo_path(sample_dir)
     geometry = parse_geometry(sample_dir / "settings.cto")
     geometry = geometry_for_projection_count(geometry, dataset.projections.shape[0])
 
@@ -220,9 +221,9 @@ def save_reconstruction_outputs(
 
 
 def run_fdk_reconstruction(
-    sample_dir: str | Path = "sample 1",
+    sample_dir: str | Path = SAMPLE_DIR,
     downsample_factor: int = 2,
-    output_dir: str | Path = "outputs/fdk_astra",
+    output_dir: str | Path = OUTPUTS_DIR / "fdk_astra",
 ) -> dict[str, Path]:
     dataset = make_full_projection_dataset(sample_dir)
     volume, info = reconstruct_volume_from_projection_dataset(
@@ -230,7 +231,7 @@ def run_fdk_reconstruction(
         sample_dir=sample_dir,
         downsample_factor=downsample_factor,
     )
-    return save_reconstruction_outputs(volume, info, output_dir=output_dir, prefix="fdk")
+    return save_reconstruction_outputs(volume, info, output_dir=resolve_repo_path(output_dir), prefix="fdk")
 
 
 if __name__ == "__main__":
