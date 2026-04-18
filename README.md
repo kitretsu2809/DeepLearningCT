@@ -70,3 +70,54 @@ This direct model is still slice-wise: one sparse detector-row sinogram maps to 
 - Package imports now resolve from `src/ct_recon`, and default sample data lives in `data/sample_1`.
 - Raw datasets, generated outputs, checkpoints, previews, and exported training archives are excluded from Git.
 - The main 3D reconstruction path uses ASTRA with CUDA.
+
+## Training on Combined Dataset (Sample 1 + Sample 2)
+
+To train the sparse sinogram reconstructor on data from both samples:
+
+### Step 1: Reconstruct target volumes for each sample
+
+```bash
+# Sample 1 (smaller, faster)
+python scripts/reconstruct_fdk_astra.py --downsample 2
+
+# Sample 2 (larger, use downsampling)
+python scripts/reconstruct_sample2.py --downsample 4
+```
+
+### Step 2: Build combined dataset
+
+```bash
+python scripts/build_combined_sparse_dataset.py \
+  --downsample-factor 2 \
+  --sparse-step 4 \
+  --detector-count 256 \
+  --image-size 256
+```
+
+Or with custom target volumes:
+```bash
+python scripts/build_combined_sparse_dataset.py \
+  --sample1-target outputs/sample_1_fdk_ds2/fdk_volume.tif \
+  --sample2-target outputs/sample_2_fdk_ds4/fdk_volume.tif \
+  --sparse-step 4
+```
+
+### Step 3: Train on combined data
+
+```bash
+python scripts/train_combined_sparse_reconstructor.py \
+  --dataset-path outputs/combined_sparse_dataset.npz \
+  --output-dir outputs/combined_recon_training \
+  --epochs 50 \
+  --batch-size 4 \
+  --learning-rate 1e-3
+```
+
+### Step 4: Inference with combined model
+
+```bash
+python scripts/reconstruct_sparse_volume_dl.py \
+  --checkpoint outputs/combined_recon_training/best_model.pt \
+  --output-dir outputs/combined_recon_inference
+```
