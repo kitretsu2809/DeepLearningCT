@@ -60,7 +60,7 @@ def main():
         raise ValueError("--slice-stride must be positive")
 
     sample_dir = resolve_repo_path(args.sample_dir)
-    sample = load_sample1(sample_dir)
+    sample = load_sample(sample_dir)
     geometry = parse_geometry(sample_dir / "settings.cto")
     target_volume_path = resolve_target_volume_path(args.target_volume)
     target_volume = tifffile.imread(target_volume_path).astype(np.float32)
