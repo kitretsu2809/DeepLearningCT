@@ -13,7 +13,7 @@ SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from ct_recon.data_loader import load_sample1
+from ct_recon.data_loader import load_sample
 from ct_recon.geometry import parse_geometry
 from ct_recon.paths import OUTPUTS_DIR, SAMPLE_DIR, resolve_repo_path
 from ct_recon.reconstruct_fdk_astra import convert_to_attenuation, downsample_projection_stack, save_preview
@@ -36,7 +36,7 @@ def main():
     sparse_step = int(args.sparse_step or metadata["sparse_step"])
 
     sample_dir = resolve_repo_path(args.sample_dir)
-    sample = load_sample1(sample_dir)
+    sample = load_sample(sample_dir)
     geometry = parse_geometry(sample_dir / "settings.cto")
     projections_ds = downsample_projection_stack(sample.projections, int(metadata["downsample_factor"]))
     attenuation = convert_to_attenuation(projections_ds)
@@ -48,7 +48,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = SparseCTReconstructionModel(
         sparse_angle_count=len(sparse_indices),
-        dense_angle_count=int(metadata["dense_angle_count"]),
+        dense_angle_count=attenuation.shape[0],
         detector_count=int(metadata["detector_count"]),
         image_size=int(metadata["image_size"]),
     ).to(device)

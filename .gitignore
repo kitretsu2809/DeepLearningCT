@@ -21,7 +21,7 @@ exports/
 # Large data files (should be downloaded separately)
 data/archives/
 data/sample_1/projections/
-data/sample_2/
+data/sample_2/projections/
 
 # Specific large archives
 dataset.zip

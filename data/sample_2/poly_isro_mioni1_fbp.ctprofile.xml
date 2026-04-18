@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CTProfile xmlns:xsi="none">
+  <ManipulatorPosition Version="2">
+    <AxisPosition>0.002</AxisPosition>
+    <AxisPosition>183.1764</AxisPosition>
+    <AxisPosition>213.992737</AxisPosition>
+    <AxisPosition>59.18213</AxisPosition>
+    <AxisPosition>0</AxisPosition>
+    <AxisPosition>0</AxisPosition>
+  </ManipulatorPosition>
+  <CTAxisOffset>0</CTAxisOffset>
+  <XraySettings>
+    <kV>200</kV>
+    <uA>171</uA>
+    <FocusMode>autoDefocus</FocusMode>
+  </XraySettings>
+  <RequiresPreprocessing>false</RequiresPreprocessing>
+  <PreprocessingType>0</PreprocessingType>
+  <XrayHead>Rotating Reflection 225</XrayHead>
+  <XrayHeadNumber>10</XrayHeadNumber>
+  <Detector>PerkinElmerXRD4343CT</Detector>
+  <ShadingCorrectionProfile>
+    <StandardCorrection>false</StandardCorrection>
+    <Frames>85</Frames>
+    <PanelScan>false</PanelScan>
+    <PanelScanNumberImages>1</PanelScanNumberImages>
+    <ImagingConditions exposure="354" accumulation="0" binning="0" gain="2" digitalGain="0" WhiteToBlackLatency="20000" BlackToWhiteLatency="0" WhiteToWhiteLatency="1000" lines="1">
+      <transform>1</transform>
+      <imageOffsetX>15</imageOffsetX>
+      <imageOffsetY>15</imageOffsetY>
+      <imageSizeX>2850</imageSizeX>
+      <imageSizeY>2850</imageSizeY>
+    </ImagingConditions>
+    <GreyLevelTargets>
+      <Target>
+        <kV>0</kV>
+        <uA>0</uA>
+        <XrayFilterMaterial />
+        <XrayFilterMaterialSymbol />
+        <XrayFilterThickness>0</XrayFilterThickness>
+        <GreyLevel>0</GreyLevel>
+        <PercentageWhiteLevel>0</PercentageWhiteLevel>
+      </Target>
+      <Target>
+        <kV>200</kV>
+        <uA>171</uA>
+        <XrayFilterMaterial />
+        <XrayFilterMaterialSymbol />
+        <XrayFilterThickness>0</XrayFilterThickness>
+        <GreyLevel>65535</GreyLevel>
+        <PercentageWhiteLevel>100</PercentageWhiteLevel>
+      </Target>
+    </GreyLevelTargets>
+    <WhiteTargetLevel>60000</WhiteTargetLevel>
+    <UsesMultipleXrayFilters>false</UsesMultipleXrayFilters>
+    <Mode>CT3D</Mode>
+    <TiltDegrees>0</TiltDegrees>
+  </ShadingCorrectionProfile>
+  <FluxNormalisation>false</FluxNormalisation>
+  <FluxNormalisationRect>
+    <Location>
+      <X>10</X>
+      <Y>10</Y>
+    </Location>
+    <Size>
+      <Width>100</Width>
+      <Height>100</Height>
+    </Size>
+    <X>10</X>
+    <Y>10</Y>
+    <Width>100</Width>
+    <Height>100</Height>
+  </FluxNormalisationRect>
+  <ImagingSettings exposure="354" accumulation="0" binning="0" gain="2" digitalGain="0" WhiteToBlackLatency="20000" BlackToWhiteLatency="0" WhiteToWhiteLatency="1000" lines="1">
+    <transform>1</transform>
+    <imageOffsetX>15</imageOffsetX>
+    <imageOffsetY>15</imageOffsetY>
+    <imageSizeX>2850</imageSizeX>
+    <imageSizeY>2850</imageSizeY>
+  </ImagingSettings>
+  <DetectorPixelSizeMM>0.15</DetectorPixelSizeMM>
+  <Reconstruct>false</Reconstruct>
+  <ReconstructionQuality>100</ReconstructionQuality>
+  <TallSampleRadius>0</TallSampleRadius>
+  <UseTallSampleROI>false</UseTallSampleROI>
+  <ReconstructionPCName>&lt;Automatic&gt;</ReconstructionPCName>
+  <OptimiseProjections>false</OptimiseProjections>
+  <TubeWarmUpTimeSeconds>0</TubeWarmUpTimeSeconds>
+  <FramesPerProjection>1</FramesPerProjection>
+  <NumberOfDatasets>1</NumberOfDatasets>
+  <ReconstructionOutput>
+    <OutputDataFormat>0</OutputDataFormat>
+    <ImportConversion>0</ImportConversion>
+    <AutoScalingType>0</AutoScalingType>
+    <FixedAttenuationLowInvMM>0</FixedAttenuationLowInvMM>
+    <FixedAttenuationHighInvMM>1</FixedAttenuationHighInvMM>
+    <PercentileLow>0.2</PercentileLow>
+    <PercentileHigh>99.8</PercentileHigh>
+    <LinearAttenuationUnits>2</LinearAttenuationUnits>
+  </ReconstructionOutput>
+  <BeamHardeningPreset>0</BeamHardeningPreset>
+  <BeamHardeningLUTFile />
+  <UseArtefactReductionModel>false</UseArtefactReductionModel>
+  <ArtefactReductionModel />
+  <NoiseReductionPreset>0</NoiseReductionPreset>
+  <CentreOfRotationMaskRadius>0.95</CentreOfRotationMaskRadius>
+  <ReconstructionMaskRadius>1</ReconstructionMaskRadius>
+  <LinearInterpolation>true</LinearInterpolation>
+  <MedianFilterSize>1</MedianFilterSize>
+  <ProjectionImageEnhancement>None</ProjectionImageEnhancement>
+  <CalculateCentreOfRotation>false</CalculateCentreOfRotation>
+  <DualCentreOfRotation>false</DualCentreOfRotation>
+  <CoROffsetZ1>0</CoROffsetZ1>
+  <CoROffsetZ2>-101.23083475298128</CoROffsetZ2>
+  <DualMaterialModelFile />
+  <SelectVolumeAnalysis>NotSet</SelectVolumeAnalysis>
+  <VolumeGraphicsVersion>0</VolumeGraphicsVersion>
+  <VolumeGraphicsMacros />
+  <VolumeGraphicsMacrosSupportFiles />
+  <VGInLineWatchFolder />
+  <VGInLineJob />
+  <VeilingGlareApplied>false</VeilingGlareApplied>
+  <VeilingGlareProfile />
+  <SaveUncorrectedImages>false</SaveUncorrectedImages>
+  <ScatterCorrectionSettings>
+    <Materials />
+  </ScatterCorrectionSettings>
+  <SafeFocusDisabled>false</SafeFocusDisabled>
+  <LocalCalibration>
+    <Apply>false</Apply>
+    <ScaleFactor>0</ScaleFactor>
+  </LocalCalibration>
+  <JobGuid>c8705ece-754f-484d-82f3-bf7d5c5863ae</JobGuid>
+  <ProfileName>poly_isro_mioni1_fbp</ProfileName>
+  <ProfileVersion>0</ProfileVersion>
+  <DataSetName>poly_isro_mioni1_fbp</DataSetName>
+  <SafePosition Version="2">
+    <AxisPosition>-1.56</AxisPosition>
+    <AxisPosition>126.135</AxisPosition>
+    <AxisPosition>213.993</AxisPosition>
+    <AxisPosition>59.182</AxisPosition>
+    <AxisPosition>0</AxisPosition>
+    <AxisPosition>0</AxisPosition>
+  </SafePosition>
+  <MinimiseRingArtefacts>false</MinimiseRingArtefacts>
+  <Projections>360</Projections>
+  <PanelScanImages>1</PanelScanImages>
+  <FastPanelScan>true</FastPanelScan>
+  <MaxPixelsToShuttle>0</MaxPixelsToShuttle>
+  <Delay>
+    <Hours>0</Hours>
+    <Minutes>0</Minutes>
+    <Seconds>0</Seconds>
+  </Delay>
+  <HelicalScan>false</HelicalScan>
+  <LimitedAngleScan>false</LimitedAngleScan>
+  <HalfTurnScan>false</HalfTurnScan>
+  <OffsetScan>false</OffsetScan>
+  <TiltedCTScan>false</TiltedCTScan>
+  <VolumeOfInterest>
+    <XStart>995</XStart>
+    <XEnd>2020</XEnd>
+    <YStart>873</YStart>
+    <YEnd>1847</YEnd>
+    <ZStart>0</ZStart>
+    <ZEnd>2849</ZEnd>
+  </VolumeOfInterest>
+  <ManualCentreOfRotation>false</ManualCentreOfRotation>
+</CTProfile>

@@ -134,7 +134,7 @@ def build_pair_for_dataset(
 
 def build_default_training_pairs(
     sample_dir: str | Path = SAMPLE_DIR,
-    downsample_factor: int = 2,
+    downsample_factor: int = 3,
     output_dir: str | Path = OUTPUTS_DIR / "training_pairs",
 ) -> list[dict[str, Path]]:
     full_dataset = make_full_projection_dataset(sample_dir)

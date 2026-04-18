@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Information Version="2">
+  <JobGuid>c8705ece-754f-484d-82f3-bf7d5c5863ae</JobGuid>
+  <Identifier>poly_isro_mioni1_fbp</Identifier>
+  <OperatorId />
+  <Elements>
+    <Element>
+      <tag>Dataset name</tag>
+      <value>poly_isro_mioni1_fbp</value>
+    </Element>
+  </Elements>
+  <ScannerManufacturerInformation>
+    <CompanyName>Nikon Metrology NV</CompanyName>
+    <CompanyAddress>Nikon X-Tek Systems Ltd, Tring Business Centre, Icknield Way, Tring, Hertfordshire, HP23 4JX, United Kingdom</CompanyAddress>
+    <CompanyHomepage>www.industry.nikon.com</CompanyHomepage>
+    <SystemType>XT H 225 ST 2x</SystemType>
+    <AcquisitionSoftware>Inspect-X XT 7.1.1</AcquisitionSoftware>
+  </ScannerManufacturerInformation>
+  <ScanInformation>
+    <TubeVoltageInkV>200</TubeVoltageInkV>
+    <TubeCurrentInuA>171</TubeCurrentInuA>
+    <ScanMethod>Standard</ScanMethod>
+    <FilterThickness>0</FilterThickness>
+    <FilterThicknessUnit>mm</FilterThicknessUnit>
+    <FilterMaterial />
+    <Projections>360</Projections>
+    <FramesPerProjection>1</FramesPerProjection>
+    <DetectorGain>18.0 dB</DetectorGain>
+    <DetectorDigitalGain>1</DetectorDigitalGain>
+    <ExposureMilliseconds>354</ExposureMilliseconds>
+    <DetectorPixelSizeMicrometers>150</DetectorPixelSizeMicrometers>
+    <ScanStart>2025-12-05 16.34.35</ScanStart>
+    <ScanEnd>2025-12-05 16.36.50</ScanEnd>
+    <Magnification>7.345523741059397</Magnification>
+    <SourceToObjectMM>152.9015503</SourceToObjectMM>
+    <SourceToDetectorMM>1123.1419677734375</SourceToDetectorMM>
+  </ScanInformation>
+</Information>

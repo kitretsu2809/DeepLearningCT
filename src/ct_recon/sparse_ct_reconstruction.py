@@ -86,23 +86,18 @@ def save_history(history: dict, output_dir: str | Path) -> Path:
 
 
 class ResidualConvBlock:
-    def __new__(cls, channels: int):
+    def __init__(self, channels: int):
         torch, nn, _ = _import_torch_or_exit()
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
+        )
+        self.act = nn.ReLU(inplace=True)
 
-        class _ResidualConvBlock(nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.net = nn.Sequential(
-                    nn.Conv2d(channels, channels, kernel_size=3, padding=1),
-                    nn.ReLU(inplace=True),
-                    nn.Conv2d(channels, channels, kernel_size=3, padding=1),
-                )
-                self.act = nn.ReLU(inplace=True)
-
-            def forward(self, x):
-                return self.act(x + self.net(x))
-
-        return _ResidualConvBlock()
+    def forward(self, x):
+        return self.act(x + self.net(x))
 
 
 class DoubleConv:
@@ -121,7 +116,7 @@ class SinogramToImageDecoder:
         torch, nn, F = _import_torch_or_exit()
 
         class _SinogramToImageDecoder(nn.Module):
-            def __init__(self):
+            def __init__(self, image_size=image_size, base_features=base_features):
                 super().__init__()
                 self.image_size = int(image_size)
                 self.latent_size = max(8, self.image_size // 8)
@@ -171,24 +166,22 @@ class SinogramToImageDecoder:
         return _SinogramToImageDecoder()
 
 
-class SparseCTReconstructionModel:
-    def __new__(
-        cls,
-        sparse_angle_count: int,
-        dense_angle_count: int,
-        detector_count: int,
-        image_size: int,
-    ):
-        torch, nn, _ = _import_torch_or_exit()
+def SparseCTReconstructionModel(
+    sparse_angle_count: int,
+    dense_angle_count: int,
+    detector_count: int,
+    image_size: int,
+):
+    torch, nn, _ = _import_torch_or_exit()
 
-        class _SparseCTReconstructionModel(nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.reconstruction_net = SinogramToImageDecoder(image_size=image_size)
+    class _SparseCTReconstructionModel(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.reconstruction_net = SinogramToImageDecoder(image_size=image_size)
 
-            def forward(self, sparse_sinogram):
-                return {
-                    "reconstruction": self.reconstruction_net(sparse_sinogram),
-                }
+        def forward(self, sparse_sinogram):
+            return {
+                "reconstruction": self.reconstruction_net(sparse_sinogram),
+            }
 
-        return _SparseCTReconstructionModel()
+    return _SparseCTReconstructionModel()
