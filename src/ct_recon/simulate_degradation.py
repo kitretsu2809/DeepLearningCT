@@ -8,7 +8,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .data_loader import CTScanData, load_sample1
+from .data_loader import CTScanData, load_sample
 from .geometry import geometry_for_projection_count, parse_geometry
 from .paths import OUTPUTS_DIR, SAMPLE_DIR, resolve_repo_path
 
@@ -33,7 +33,7 @@ def normalize_image(image: np.ndarray) -> np.ndarray:
 
 def make_full_projection_dataset(sample_dir: str | Path = SAMPLE_DIR) -> DegradedProjectionData:
     sample_dir = resolve_repo_path(sample_dir)
-    data = load_sample1(sample_dir)
+    data = load_sample(sample_dir)
     geometry = parse_geometry(sample_dir / "settings.cto")
     geometry = geometry_for_projection_count(geometry, data.projections.shape[0])
 

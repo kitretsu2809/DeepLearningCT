@@ -86,18 +86,23 @@ def save_history(history: dict, output_dir: str | Path) -> Path:
 
 
 class ResidualConvBlock:
-    def __init__(self, channels: int):
+    def __new__(cls, channels: int):
         torch, nn, _ = _import_torch_or_exit()
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(channels, channels, kernel_size=3, padding=1),
-        )
-        self.act = nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        return self.act(x + self.net(x))
+        
+        class _ResidualConvBlock(nn.Module):
+            def __init__(self, channels: int):
+                super().__init__()
+                self.net = nn.Sequential(
+                    nn.Conv2d(channels, channels, kernel_size=3, padding=1),
+                    nn.ReLU(inplace=True),
+                    nn.Conv2d(channels, channels, kernel_size=3, padding=1),
+                )
+                self.act = nn.ReLU(inplace=True)
+            
+            def forward(self, x):
+                return self.act(x + self.net(x))
+        
+        return _ResidualConvBlock(channels)
 
 
 class DoubleConv:

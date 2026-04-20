@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
@@ -73,6 +73,8 @@ def run_sample2_reconstruction(downsample_factor: int = 4, max_projections: int 
     vol_geom = build_volume_geometry(detector_rows, detector_cols, detector_pixel_mm)
     
     # Create sinogram
+    # ASTRA expects sinogram in (detector_rows, angles, detector_cols) order
+    projections = np.transpose(projections, (1, 0, 2))
     print("Creating sinogram...")
     sinogram_id = astra.data3d.create("-sino", proj_geom, projections)
     
@@ -81,8 +83,8 @@ def run_sample2_reconstruction(downsample_factor: int = 4, max_projections: int 
     rec_id = astra.data3d.create("-vol", vol_geom)
     
     cfg = astra.astra_dict("FDK_CUDA")
-    cfg["ProjectionSinogramId"] = sinogram_id
-    cfg["ReconstructionId"] = rec_id
+    cfg["ProjectionDataId"] = sinogram_id
+    cfg["ReconstructionDataId"] = rec_id
     alg_id = astra.algorithm.create(cfg)
     astra.algorithm.run(alg_id)
     

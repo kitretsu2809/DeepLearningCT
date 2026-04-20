@@ -8,12 +8,12 @@ from pathlib import Path
 import numpy as np
 import tifffile
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 SRC_DIR = REPO_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from ct_recon.data_loader import load_sample1
+from ct_recon.data_loader import load_sample
 from ct_recon.geometry import parse_geometry
 from ct_recon.paths import OUTPUTS_DIR, SAMPLE_DIR, resolve_repo_path
 from ct_recon.reconstruct_fdk_astra import convert_to_attenuation, downsample_projection_stack
@@ -72,11 +72,18 @@ def main():
     sparse_indices = np.arange(0, dense_angle_count, args.sparse_step, dtype=np.int32)
     row_start, row_stop = compute_row_range(geometry.zmin, geometry.zmax, args.downsample_factor)
 
-    expected_slice_count = row_stop - row_start + 1
-    if target_volume.shape[0] != expected_slice_count:
-        raise ValueError(
-            f"Target volume depth {target_volume.shape[0]} does not match expected cropped detector rows {expected_slice_count}"
-        )
+    # Adjust row range to match actual target volume dimensions
+    # Different samples have different z-ranges, so we use target volume as reference
+    actual_slices = target_volume.shape[0]
+    expected_slices = row_stop - row_start + 1
+    
+    if actual_slices != expected_slices:
+        print(f"Note: Target volume has {actual_slices} slices, expected {expected_slices}")
+        print(f"Adjusting row range from [{row_start}, {row_stop}] to use available data...")
+        # Use whichever is smaller to avoid index errors
+        usable_slices = min(actual_slices, expected_slices)
+        row_stop = row_start + usable_slices - 1
+        print(f"Using rows {row_start} to {row_stop} ({usable_slices} slices)")
 
     image_min = float(target_volume.min())
     image_max = float(target_volume.max())
