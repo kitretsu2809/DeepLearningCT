@@ -24,6 +24,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "src"
 SCRIPTS_DIR = REPO_ROOT / "scripts"
+sys.path.insert(0, str(SRC_DIR))
 sys.path.insert(0, str(SCRIPTS_DIR / "common"))
 
 from sample_config import get_sample_paths, get_sample_config
@@ -42,7 +43,7 @@ def run_command(cmd: list[str], description: str, check: bool = True) -> int:
     return 0
 
 
-def run_classical(sample_name: str, skip_if_exists: bool = True):
+def run_classical(sample_name: str, skip_if_exists: bool = True, no_downsample: bool = False, downsample_factor_override: int | None = None):
     """Run classical FDK reconstruction."""
     paths = get_sample_paths(sample_name)
     config = get_sample_config(sample_name)
@@ -55,21 +56,36 @@ def run_classical(sample_name: str, skip_if_exists: bool = True):
     
     fdk_volume.parent.mkdir(parents=True, exist_ok=True)
     
-    ds = config["downsample_factor"]
+    if no_downsample:
+        ds = 1
+        print("Running FULL RESOLUTION reconstruction (no downsampling)")
+    elif downsample_factor_override:
+        ds = downsample_factor_override
+    else:
+        ds = config["downsample_factor"]
     
     if sample_name == "sample_1":
+        if ds == 1:
+            output_name = "fdk_full"
+        else:
+            output_name = f"fdk_full_ds{ds}"
         result = run_command(
             [sys.executable, str(SCRIPTS_DIR / "classical_reconstruction" / "reconstruct_fdk.py"),
-             "--downsample", str(ds)],
+             "--downsample", str(ds),
+             "--output-dir", str(REPO_ROOT / "outputs" / output_name)],
             "Running FDK reconstruction for sample_1"
         )
         if result != 0:
             return result
         # Copy to standard location
-        source = REPO_ROOT / "outputs" / f"fdk_full_ds{ds}" / "fdk_volume.tif"
+        source = REPO_ROOT / "outputs" / output_name / "fdk_volume.tif"
         if source.exists():
             shutil.copy(source, fdk_volume)
     else:
+        if ds == 1:
+            output_name = "sample_2_fdk_full"
+        else:
+            output_name = f"sample_2_fdk_ds{ds}"
         result = run_command(
             [sys.executable, str(SCRIPTS_DIR / "classical_reconstruction" / "reconstruct_fdk_sample2.py"),
              "--downsample", str(ds)],
@@ -77,9 +93,13 @@ def run_classical(sample_name: str, skip_if_exists: bool = True):
         )
         if result != 0:
             return result
-        source = REPO_ROOT / "outputs" / f"sample_2_fdk_ds{ds}" / "fdk_volume.tif"
+        source = REPO_ROOT / "outputs" / output_name / "fdk_volume.tif"
         if source.exists():
             shutil.copy(source, fdk_volume)
+        preview_source = REPO_ROOT / "outputs" / output_name / "preview.png"
+        preview_dest = fdk_volume.parent / "fdk_preview.png"
+        if preview_source.exists():
+            shutil.copy(preview_source, preview_dest)
     
     print(f"FDK volume saved to: {fdk_volume}")
     return 0
@@ -254,6 +274,10 @@ Examples:
     classical_parser = subparsers.add_parser("classical", help="Classical FDK reconstruction only")
     classical_parser.add_argument("--sample", required=True, choices=["sample_1", "sample_2"],
                                    help="Sample to process")
+    classical_parser.add_argument("--no-downsample", action="store_true",
+                                   help="Skip downsampling for better quality (requires more GPU memory)")
+    classical_parser.add_argument("--downsample-factor", type=int, default=None,
+                                   help="Override downsample factor")
     
     args = parser.parse_args()
     
@@ -262,7 +286,12 @@ Examples:
     elif args.command == "unet":
         return run_unet_pipeline(args.sample, args.epochs)
     elif args.command == "classical":
-        return run_classical(args.sample, skip_if_exists=False)
+        return run_classical(
+            args.sample,
+            skip_if_exists=False,
+            no_downsample=args.no_downsample,
+            downsample_factor_override=args.downsample_factor
+        )
     else:
         parser.print_help()
         return 1

@@ -18,7 +18,6 @@ from ct_recon.reconstruct_fdk_astra import (
     build_volume_geometry,
     convert_to_attenuation,
     downsample_projection_stack,
-    normalize_image,
     save_preview,
     run_fdk_reconstruction,
 )
@@ -95,16 +94,18 @@ def run_sample2_reconstruction(downsample_factor: int = 4, max_projections: int 
     astra.data3d.delete(rec_id)
     astra.data3d.delete(sinogram_id)
     
-    # Normalize and save
-    volume_norm = normalize_image(volume)
+    # Save raw FDK output (without normalization to preserve physical attenuation values)
+    # Note: Normalization destroys variance needed for training - normalize only for visualization
     
     output_dir = OUTPUTS_DIR / f"sample_2_fdk_ds{ds}"
     output_dir.mkdir(parents=True, exist_ok=True)
     
     volume_path = output_dir / "fdk_volume.tif"
-    tifffile.imwrite(volume_path, volume_norm.astype(np.float32))
+    tifffile.imwrite(volume_path, volume.astype(np.float32))
     print(f"Saved volume to {volume_path}")
     
+    # Also save a normalized version for preview only
+    volume_norm = (volume - volume.min()) / (volume.max() - volume.min())
     preview_path = save_preview(volume_norm, detector_pixel_mm, output_dir / "preview.png")
     print(f"Saved preview to {preview_path}")
     

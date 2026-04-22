@@ -11,7 +11,7 @@ SAMPLE_CONFIG = {
     "sample_2": {
         "downsample_factor": 4,
         "detector_size": 2850,
-        "z_range": (0, 2849),
+        "z_range": (280, 440),  # Only active slices (std > 0.001)
     },
 }
 

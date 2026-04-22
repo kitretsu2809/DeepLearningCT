@@ -13,13 +13,24 @@ Traditional filtered back-projection (FDK) reconstruction using ASTRA Toolbox.
 
 **What it does:**
 - Runs FDK reconstruction on raw projection data
-- Outputs a 3D volume reconstruction
+- Outputs a 3D volume reconstruction (.tif) and preview (.png)
 
 **Command:**
 ```bash
+# Default (downsampled)
 python scripts/run_pipeline.py classical --sample sample_1
 python scripts/run_pipeline.py classical --sample sample_2
+
+# Full resolution (no downsampling - requires more GPU memory)
+python scripts/run_pipeline.py classical --sample sample_2 --no-downsample
+
+# Custom downsample factor
+python scripts/run_pipeline.py classical --sample sample_2 --downsample-factor 2
 ```
+
+**Options:**
+- `--no-downsample` - Skip downsampling for better quality (requires more GPU memory)
+- `--downsample-factor N` - Override default downsample factor
 
 ---
 
@@ -68,9 +79,18 @@ python scripts/run_pipeline.py unet --sample sample_2 --epochs 50
 - `src/ct_recon/`: shared library code
 - `scripts/`: runnable pipelines and entrypoints
 - `data/sample_1`, `data/sample_2`: raw datasets
-- `outputs/`: generated reconstructions, datasets, and checkpoints
+- `outputs/sample_X_pipeline/`: pipeline outputs (classical, sinogram_recon, unet_enhance)
+
+## Data Samples
+
+| Sample | Projections | Original Size | Downsample | Notes |
+|--------|------------|--------------|-----------|-------|
+| sample_1 | 359 | 1000×1000 | 2 | Full volume |
+| sample_2 | 361 | 2850×2850 | 4 | Limited z-range (slices 280-440 contain structure) |
+
+**Note:** Sample_2 has empty slices at top and bottom. The z-range is automatically limited to only the active region.
 
 ## Notes
 
 - Combined multi-sample training scripts were removed to keep workflows strictly separated by sample and task.
-- Universal sample/output paths are managed via `scripts/common/sample_config.py` and `scripts/common/paths.sh`.
+- Universal sample/output paths are managed via `scripts/common/sample_config.py`.
