@@ -1,10 +1,11 @@
 # Deep Learning CT Reconstruction
 
-This project implements three CT reconstruction pipeline modes:
+This project implements four CT reconstruction pipeline modes:
 
 1. **Classical**: Traditional FDK (Feldkamp-Davis-Kress) reconstruction
-2. **Sinogram**: Direct neural network reconstruction from sparse sinograms
-3. **U-Net**: Enhancement of degraded FDK reconstructions using U-Net
+2. **Sinogram**: Deep learning from sparse sinograms (fewer X-ray views)
+3. **Enhance**: Deep learning from full sinograms (all X-ray views) - for improving FDK
+4. **U-Net**: Post-processing enhancement of degraded FDK
 
 ## Pipeline Modes
 
@@ -12,65 +13,68 @@ This project implements three CT reconstruction pipeline modes:
 Traditional filtered back-projection (FDK) reconstruction using ASTRA Toolbox.
 
 **What it does:**
-- Runs FDK reconstruction on raw projection data
-- Outputs a 3D volume reconstruction (.tif) and preview (.png)
+- Runs FDK on raw projection data
+- Outputs 3D volume (.tif) and preview (.png)
 
 **Command:**
 ```bash
 # Default (downsampled)
 python scripts/run_pipeline.py classical --sample sample_1
-python scripts/run_pipeline.py classical --sample sample_2
 
-# Full resolution (no downsampling - requires more GPU memory)
+# Full resolution (no downsampling)
 python scripts/run_pipeline.py classical --sample sample_2 --no-downsample
-
-# Custom downsample factor
-python scripts/run_pipeline.py classical --sample sample_2 --downsample-factor 2
 ```
 
-**Options:**
-- `--no-downsample` - Skip downsampling for better quality (requires more GPU memory)
-- `--downsample-factor N` - Override default downsample factor
+**Options:** `--no-downsample`, `--downsample-factor N`
 
 ---
 
 ### 2. Sinogram (`sinogram`)
-End-to-end deep learning: directly reconstructs images from sparse sinograms (fewer X-ray projections).
+Deep learning from **sparse** sinograms (subset of projections).
 
-**What it does:**
-1. Runs classical FDK reconstruction for reference
-2. Builds sparse sinogram dataset (subsampled projections)
-3. Trains a neural network to reconstruct from sparse sinograms
-4. Runs inference on test data
+- Input: Every Nth projection (sparse)
+- Target: FDK from all projections
+- Use case: Reconstruct from fewer X-ray views
 
 **Command:**
 ```bash
 python scripts/run_pipeline.py sinogram --sample sample_1 --epochs 50
-python scripts/run_pipeline.py sinogram --sample sample_2 --epochs 50
 ```
 
-**Options:**
-- `--epochs N` - Number of training epochs (default: 50)
+**Options:** `--epochs N`
 
 ---
 
-### 3. U-Net (`unet`)
-Post-processing enhancement: improves degraded FDK reconstructions using a U-Net.
+### 3. Enhance (`enhance`)
+Deep learning from **full** sinograms (all projections) to enhance FDK reconstruction.
 
-**What it does:**
-1. Runs classical FDK reconstruction for reference
-2. Creates training pairs (degraded FDK → high-quality reference)
-3. Trains a U-Net to enhance degraded reconstructions
-4. Outputs trained model for inference
+- Input: Full projection set
+- Target: FDK reconstruction (same projections)
+- Use case: Improve reconstruction quality beyond classical FDK
+
+**Command:**
+```bash
+python scripts/run_pipeline.py enhance --sample sample_1 --epochs 50
+python scripts/run_pipeline.py enhance --sample sample_2 --epochs 50
+```
+
+**Options:** `--epochs N`
+
+---
+
+### 4. U-Net (`unet`)
+Post-processing enhancement of degraded FDK using U-Net.
+
+- Input: Degraded (downsampled) FDK
+- Target: High-quality FDK
+- Use case: Polish/reduce artifacts in reconstruction
 
 **Command:**
 ```bash
 python scripts/run_pipeline.py unet --sample sample_1 --epochs 50
-python scripts/run_pipeline.py unet --sample sample_2 --epochs 50
 ```
 
-**Options:**
-- `--epochs N` - Number of training epochs (default: 50)
+**Options:** `--epochs N`
 
 ---
 

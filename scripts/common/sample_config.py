@@ -39,10 +39,14 @@ def get_sample_paths(sample_name: str, repo_root: Path | None = None) -> dict:
         "downsample_factor": config["downsample_factor"],
         # Classical reconstruction outputs
         "fdk_volume": output_base / "classical" / "fdk_volume.tif",
-        # Sinogram reconstruction pipeline
+        # Sinogram reconstruction pipeline (sparse input)
         "sinogram_dataset": output_base / "sinogram_recon" / "dataset.npz",
         "sinogram_checkpoint": output_base / "sinogram_recon" / "training" / "best_model.pt",
         "sinogram_inference": output_base / "sinogram_recon" / "inference",
+        # Enhance pipeline (full input)
+        "enhance_dataset": output_base / "enhance" / "dataset.npz",
+        "enhance_checkpoint": output_base / "enhance" / "training" / "best_model.pt",
+        "enhance_inference": output_base / "enhance" / "inference",
         # U-Net enhancement pipeline  
         "unet_training_pairs": output_base / "unet_enhance" / "training_pairs",
         "unet_checkpoint": output_base / "unet_enhance" / "training" / "best_model.pt",

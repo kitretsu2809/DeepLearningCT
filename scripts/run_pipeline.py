@@ -237,6 +237,66 @@ def run_unet_pipeline(sample_name: str, epochs: int = 50):
     return 0
 
 
+def run_enhance_pipeline(sample_name: str, epochs: int = 50):
+    """Run enhance pipeline: full sinogram input -> FDK target."""
+    paths = get_sample_paths(sample_name)
+    config = get_sample_config(sample_name)
+
+    print(f"\n{'='*60}")
+    print(f"Enhance Pipeline for {sample_name}")
+    print(f"(Full sinogram -> FDK reconstruction)")
+    print(f"{'='*60}")
+
+    result = run_classical(sample_name)
+    if result != 0:
+        return result
+
+    print("\n[Step 2/4] Building enhance dataset...")
+    paths["enhance_dataset"].parent.mkdir(parents=True, exist_ok=True)
+    result = run_command(
+        [sys.executable, str(SCRIPTS_DIR / "enhance_reconstruction" / "01_build_dataset.py"),
+         "--sample-dir", str(paths["sample_dir"]),
+         "--target-volume", str(paths["fdk_volume"]),
+         "--output-path", str(paths["enhance_dataset"]),
+         "--downsample-factor", str(config["downsample_factor"]),
+         "--detector-count", "256",
+         "--image-size", "256"],
+        "Building enhance dataset (full sinogram -> FDK)"
+    )
+    if result != 0:
+        return result
+
+    print("\n[Step 3/4] Training enhance model...")
+    paths["enhance_checkpoint"].parent.mkdir(parents=True, exist_ok=True)
+    result = run_command(
+        [sys.executable, str(SCRIPTS_DIR / "enhance_reconstruction" / "02_train_model.py"),
+         "--dataset-path", str(paths["enhance_dataset"]),
+         "--output-dir", str(paths["enhance_checkpoint"].parent),
+         "--epochs", str(epochs),
+         "--batch-size", "4",
+         "--learning-rate", "1e-3"],
+        "Training enhance model"
+    )
+    if result != 0:
+        return result
+
+    print("\n[Step 4/4] Running inference...")
+    paths["enhance_inference"].mkdir(parents=True, exist_ok=True)
+    result = run_command(
+        [sys.executable, str(SCRIPTS_DIR / "enhance_reconstruction" / "03_run_inference.py"),
+         "--checkpoint", str(paths["enhance_checkpoint"]),
+         "--sample-dir", str(paths["sample_dir"]),
+         "--output-dir", str(paths["enhance_inference"])],
+        "Running inference"
+    )
+
+    print(f"\n{'='*60}")
+    print("Enhance pipeline complete!")
+    print(f"Output: {paths['enhance_inference']}")
+    print(f"{'='*60}")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="CT Reconstruction Pipeline",
@@ -278,13 +338,22 @@ Examples:
                                    help="Skip downsampling for better quality (requires more GPU memory)")
     classical_parser.add_argument("--downsample-factor", type=int, default=None,
                                    help="Override downsample factor")
-    
+
+    # Enhance pipeline (full input -> full target)
+    enhance_parser = subparsers.add_parser("enhance", help="Enhance FDK with full sinogram input")
+    enhance_parser.add_argument("--sample", required=True, choices=["sample_1", "sample_2"],
+                            help="Sample to process")
+    enhance_parser.add_argument("--epochs", type=int, default=50,
+                            help="Training epochs (default: 50)")
+
     args = parser.parse_args()
-    
+
     if args.command == "sinogram":
         return run_sinogram_pipeline(args.sample, args.epochs)
     elif args.command == "unet":
         return run_unet_pipeline(args.sample, args.epochs)
+    elif args.command == "enhance":
+        return run_enhance_pipeline(args.sample, args.epochs)
     elif args.command == "classical":
         return run_classical(
             args.sample,
