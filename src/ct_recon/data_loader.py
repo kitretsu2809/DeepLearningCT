@@ -69,10 +69,22 @@ def list_projection_files(projections_dir: str | Path) -> list[Path]:
 
 def load_projection_stack(projections_dir: str | Path, dtype=np.float32) -> tuple[np.ndarray, list[Path]]:
     files = list_projection_files(projections_dir)
-    stack = np.stack(
-        [tifffile.imread(str(path)).astype(dtype, copy=False) for path in files],
-        axis=0,
-    )
+    
+    # --- MEMORY FIX: Pre-allocate the array ---
+    # Read the first image to get our shape parameters
+    first_img = tifffile.imread(str(files[0]))
+    height, width = first_img.shape
+    
+    # Pre-allocate one single contiguous block of memory
+    stack = np.empty((len(files), height, width), dtype=dtype)
+    
+    # Insert the first image
+    stack[0] = first_img.astype(dtype, copy=False)
+    
+    # Load the rest of the images directly into their reserved slots
+    for i in range(1, len(files)):
+        stack[i] = tifffile.imread(str(files[i])).astype(dtype, copy=False)
+        
     return stack, files
 
 

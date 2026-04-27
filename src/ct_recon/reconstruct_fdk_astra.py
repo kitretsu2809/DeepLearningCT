@@ -65,10 +65,23 @@ def build_cone_geometry(
         geometry.source_to_detector_mm - geometry.source_to_object_mm,
     )
 
-    detector_center_x = (geometry.detector_cols - 1) / 2.0
-    detector_center_y = (geometry.detector_rows - 1) / 2.0
-    shift_x_px = (geometry.center_of_rotation_px - detector_center_x) / (geometry.detector_cols / detector_cols)
-    shift_y_px = (geometry.vertical_center_px - detector_center_y) / (geometry.detector_rows / detector_rows)
+    # 1. Calculate horizontal shift robustly using pure physical units (mm)
+    original_center_x_mm = ((geometry.detector_cols - 1) / 2.0) * geometry.detector_pixel_size_mm
+    cor_x_mm = geometry.center_of_rotation_px * geometry.detector_pixel_size_mm
+    shift_x_mm = cor_x_mm - original_center_x_mm
+    
+    # Convert back to downsampled ASTRA pixels
+    shift_x_px = shift_x_mm / detector_pixel_mm
+
+    # 2. Protect against missing/zero vertical center which causes the "squashing"
+    if not hasattr(geometry, 'vertical_center_px') or geometry.vertical_center_px == 0:
+        shift_y_px = 0.0
+    else:
+        original_center_y_mm = ((geometry.detector_rows - 1) / 2.0) * geometry.detector_pixel_size_mm
+        vertical_center_y_mm = geometry.vertical_center_px * geometry.detector_pixel_size_mm
+        shift_y_mm = vertical_center_y_mm - original_center_y_mm
+        shift_y_px = shift_y_mm / detector_pixel_mm
+
     proj_geom = astra.geom_postalignment(proj_geom, (shift_x_px, shift_y_px))
     return proj_geom
 
@@ -112,11 +125,12 @@ def save_preview(volume: np.ndarray, voxel_size_mm: float, output_path: str | Pa
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
+    # Ensure it looks like this:
     axes[0].imshow(axial, cmap="gray", extent=[-x_extent, x_extent, y_extent, -y_extent], aspect="equal")
     axes[0].set_title(f"Axial z={z_mid}")
     axes[0].set_xlabel("x (mm)")
     axes[0].set_ylabel("y (mm)")
-
+    
     axes[1].imshow(coronal, cmap="gray", extent=[-x_extent, x_extent, z_extent, -z_extent], aspect="equal")
     axes[1].set_title(f"Coronal y={y_mid}")
     axes[1].set_xlabel("x (mm)")
@@ -147,7 +161,15 @@ def reconstruct_volume_from_projection_dataset(
 
     detector_rows = attenuation.shape[1]
     detector_cols = attenuation.shape[2]
-    detector_pixel_mm = geometry.detector_pixel_size_mm * downsample_factor
+
+    # --- THE BULLETPROOF SCALING FIX ---
+    # 1. Calculate the true physical width of the original detector from the CTO metadata
+    original_physical_width_mm = geometry.detector_cols * geometry.detector_pixel_size_mm
+    
+    # 2. Force the new pixel size to maintain that exact physical width across the new column count
+    detector_pixel_mm = original_physical_width_mm / detector_cols
+    # -----------------------------------
+
     voxel_size_mm = detector_pixel_mm * (geometry.source_to_object_mm / geometry.source_to_detector_mm)
 
     proj_geom = build_cone_geometry(
@@ -178,10 +200,12 @@ def reconstruct_volume_from_projection_dataset(
         astra.data3d.delete(vol_id)
         astra.data3d.delete(proj_id)
 
-    cropped, (zmin_ds, zmax_ds) = crop_valid_z(reconstructed, geometry.zmin, geometry.zmax, downsample_factor)
+    # Calculate effective downsample ratio for the Z-crop
+    total_ratio = geometry.detector_cols / detector_cols
+    cropped, (zmin_ds, zmax_ds) = crop_valid_z(reconstructed, geometry.zmin, geometry.zmax, total_ratio)
+    
     info: dict[str, float | int | tuple[int, ...]] = {
         "input_projections": int(dataset.projections.shape[0]),
-        "downsample_factor": int(downsample_factor),
         "projection_shape_downsampled": tuple(int(v) for v in attenuation.shape),
         "voxel_size_mm": float(voxel_size_mm),
         "cropped_z_range_downsampled": (int(zmin_ds), int(zmax_ds)),
